@@ -11,29 +11,41 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var MarkdownController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarkdownController = void 0;
 const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
 const markdown_service_1 = require("./markdown.service");
-let MarkdownController = class MarkdownController {
+const convert_markdown_dto_1 = require("./dto/convert-markdown.dto");
+let MarkdownController = MarkdownController_1 = class MarkdownController {
     markdownService;
+    logger = new common_1.Logger(MarkdownController_1.name);
     constructor(markdownService) {
         this.markdownService = markdownService;
     }
     convert(convertMarkdownDto) {
+        this.logger.log(`Converting markdown (length: ${convertMarkdownDto.markdown.length})`);
         const html = this.markdownService.convertToHtml(convertMarkdownDto.markdown);
+        this.logger.log(`Conversion successful (HTML length: ${html.length})`);
         return { html };
     }
 };
 exports.MarkdownController = MarkdownController;
 __decorate([
     (0, common_1.Post)('convert'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Convert Markdown to HTML', description: 'Converts markdown text to HTML format' }),
+    (0, swagger_1.ApiBody)({ type: convert_markdown_dto_1.ConvertMarkdownDto }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Successfully converted markdown to HTML', type: convert_markdown_dto_1.ConvertMarkdownResponse }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid input or validation error' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Object)
+    __metadata("design:paramtypes", [convert_markdown_dto_1.ConvertMarkdownDto]),
+    __metadata("design:returntype", convert_markdown_dto_1.ConvertMarkdownResponse)
 ], MarkdownController.prototype, "convert", null);
-exports.MarkdownController = MarkdownController = __decorate([
+exports.MarkdownController = MarkdownController = MarkdownController_1 = __decorate([
+    (0, swagger_1.ApiTags)('markdown'),
     (0, common_1.Controller)('api/markdown'),
     __metadata("design:paramtypes", [markdown_service_1.MarkdownService])
 ], MarkdownController);

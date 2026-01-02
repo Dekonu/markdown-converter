@@ -41,7 +41,7 @@ export class PdfController {
   @ApiResponse({ status: 200, description: 'Successfully converted PDF to HTML', type: ConvertPdfResponse })
   @ApiResponse({ status: 400, description: 'Invalid file or validation error' })
   async convert(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<ConvertPdfResponse> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -88,7 +88,7 @@ export class PdfController {
   @ApiResponse({ status: 200, description: 'Successfully converted PDF to DOCX', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
   @ApiResponse({ status: 400, description: 'Invalid file or validation error' })
   async convertToDocx(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File | undefined,
     @Res() res: Response,
   ): Promise<void> {
     if (!file) {

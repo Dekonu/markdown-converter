@@ -11,13 +11,17 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var PdfController_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PdfController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
+const swagger_1 = require("@nestjs/swagger");
 const pdf_service_1 = require("./pdf.service");
-let PdfController = class PdfController {
+const convert_pdf_dto_1 = require("./dto/convert-pdf.dto");
+let PdfController = PdfController_1 = class PdfController {
     pdfService;
+    logger = new common_1.Logger(PdfController_1.name);
     constructor(pdfService) {
         this.pdfService = pdfService;
     }
@@ -28,8 +32,20 @@ let PdfController = class PdfController {
         if (file.mimetype !== 'application/pdf') {
             throw new common_1.BadRequestException('File must be a PDF');
         }
-        const html = await this.pdfService.convertToHtml(file.buffer);
-        return { html };
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new common_1.BadRequestException('File size exceeds 10MB limit');
+        }
+        this.logger.log(`Converting PDF to HTML: ${file.originalname} (${(file.size / 1024).toFixed(2)} KB)`);
+        try {
+            const html = await this.pdfService.convertToHtml(file.buffer);
+            this.logger.log(`PDF conversion successful (HTML length: ${html.length})`);
+            return { html };
+        }
+        catch (error) {
+            this.logger.error(`PDF conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new common_1.BadRequestException(`Failed to convert PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
     async convertToDocx(file, res) {
         if (!file) {
@@ -38,18 +54,46 @@ let PdfController = class PdfController {
         if (file.mimetype !== 'application/pdf') {
             throw new common_1.BadRequestException('File must be a PDF');
         }
-        const docxBuffer = await this.pdfService.convertToDocx(file.buffer);
-        const fileName = file.originalname.replace(/\.pdf$/i, '.docx');
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.setHeader('Content-Length', docxBuffer.length.toString());
-        res.send(docxBuffer);
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new common_1.BadRequestException('File size exceeds 10MB limit');
+        }
+        this.logger.log(`Converting PDF to DOCX: ${file.originalname} (${(file.size / 1024).toFixed(2)} KB)`);
+        try {
+            const docxBuffer = await this.pdfService.convertToDocx(file.buffer);
+            const fileName = file.originalname.replace(/\.pdf$/i, '.docx');
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+            res.setHeader('Content-Length', docxBuffer.length.toString());
+            this.logger.log(`PDF to DOCX conversion successful (DOCX size: ${(docxBuffer.length / 1024).toFixed(2)} KB)`);
+            res.send(docxBuffer);
+        }
+        catch (error) {
+            this.logger.error(`PDF to DOCX conversion failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new common_1.BadRequestException(`Failed to convert PDF to DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 };
 exports.PdfController = PdfController;
 __decorate([
     (0, common_1.Post)('convert'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    (0, swagger_1.ApiOperation)({ summary: 'Convert PDF to HTML', description: 'Extracts text from PDF and converts to HTML' }),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Successfully converted PDF to HTML', type: convert_pdf_dto_1.ConvertPdfResponse }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid file or validation error' }),
     __param(0, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -58,13 +102,29 @@ __decorate([
 __decorate([
     (0, common_1.Post)('convert-to-docx'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    (0, swagger_1.ApiOperation)({ summary: 'Convert PDF to DOCX', description: 'Converts PDF file to Microsoft Word document format' }),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Successfully converted PDF to DOCX', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid file or validation error' }),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], PdfController.prototype, "convertToDocx", null);
-exports.PdfController = PdfController = __decorate([
+exports.PdfController = PdfController = PdfController_1 = __decorate([
+    (0, swagger_1.ApiTags)('pdf'),
     (0, common_1.Controller)('api/pdf'),
     __metadata("design:paramtypes", [pdf_service_1.PdfService])
 ], PdfController);

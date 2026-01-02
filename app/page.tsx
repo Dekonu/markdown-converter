@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ConversionTypeSelector } from "./components/ConversionTypeSelector";
+import { FileUpload } from "./components/FileUpload";
+import { MarkdownEditor } from "./components/MarkdownEditor";
+import { HtmlPreview } from "./components/HtmlPreview";
+import { LoadingSpinner } from "./components/LoadingSpinner";
+import { useToastContext } from "./contexts/ToastContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 type ConversionType = "markdown" | "pdf" | "pdf-to-docx";
 
-export default function Home() {
-  const [conversionType, setConversionType] = useState<ConversionType>("markdown");
-  const [markdown, setMarkdown] = useState(`# Welcome to Markdown Converter
+const DEFAULT_MARKDOWN = `# Welcome to Markdown Converter
 
 This is a simple markdown to HTML converter.
 
@@ -35,12 +39,17 @@ Visit [Next.js](https://nextjs.org) for more information.
 
 - Item 1
 - Item 2
-- Item 3`);
+- Item 3`;
 
+export default function Home() {
+  const { showToast } = useToastContext();
+  const [conversionType, setConversionType] = useState<ConversionType>("markdown");
+  const [markdown, setMarkdown] = useState(DEFAULT_MARKDOWN);
   const [html, setHtml] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileSize, setFileSize] = useState<number | undefined>(undefined);
   const [docxBlob, setDocxBlob] = useState<Blob | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
 
@@ -64,14 +73,17 @@ Visit [Next.js](https://nextjs.org) for more information.
         });
 
         if (!response.ok) {
-          throw new Error("Failed to convert markdown");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to convert markdown");
         }
 
         const data = await response.json();
         setHtml(data.html);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        const errorMessage = err instanceof Error ? err.message : "An error occurred";
+        setError(errorMessage);
         setHtml("");
+        showToast(errorMessage, "error");
       } finally {
         setIsLoading(false);
       }
@@ -83,28 +95,28 @@ Visit [Next.js](https://nextjs.org) for more information.
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [markdown, conversionType]);
+  }, [markdown, conversionType, showToast]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      // Reset input if no file selected
       event.target.value = '';
       return;
     }
 
-    console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
     setFileName(file.name);
+    setFileSize(file.size);
     setError(null);
     setIsLoading(true);
 
     try {
       if (conversionType === "markdown") {
-        // Handle markdown files
         if (!file.name.match(/\.(md|markdown|txt)$/i)) {
           setError("Please upload a .md, .markdown, or .txt file");
           setFileName(null);
+          setFileSize(undefined);
           setIsLoading(false);
+          showToast("Invalid file type. Please upload a .md, .markdown, or .txt file", "error");
           return;
         }
 
@@ -113,23 +125,26 @@ Visit [Next.js](https://nextjs.org) for more information.
           const content = e.target?.result as string;
           setMarkdown(content);
           setIsLoading(false);
+          showToast("Markdown file loaded successfully", "success");
         };
         reader.onerror = () => {
           setError("Failed to read file");
           setFileName(null);
+          setFileSize(undefined);
           setIsLoading(false);
+          showToast("Failed to read file", "error");
         };
         reader.readAsText(file);
       } else if (conversionType === "pdf") {
-        // Handle PDF to HTML conversion
         if (!file.name.match(/\.pdf$/i)) {
           setError("Please upload a .pdf file");
           setFileName(null);
+          setFileSize(undefined);
           setIsLoading(false);
+          showToast("Please upload a .pdf file", "error");
           return;
         }
 
-        // Convert PDF to HTML via API
         const formData = new FormData();
         formData.append("file", file);
 
@@ -139,23 +154,25 @@ Visit [Next.js](https://nextjs.org) for more information.
         });
 
         if (!response.ok) {
-          throw new Error("Failed to convert PDF");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to convert PDF");
         }
 
         const data = await response.json();
         setHtml(data.html);
         setDocxBlob(null);
         setIsLoading(false);
+        showToast("PDF converted to HTML successfully", "success");
       } else if (conversionType === "pdf-to-docx") {
-        // Handle PDF to DOCX conversion
         if (!file.name.match(/\.pdf$/i)) {
           setError("Please upload a .pdf file");
           setFileName(null);
+          setFileSize(undefined);
           setIsLoading(false);
+          showToast("Please upload a .pdf file", "error");
           return;
         }
 
-        // Convert PDF to DOCX via API
         const formData = new FormData();
         formData.append("file", file);
 
@@ -165,22 +182,24 @@ Visit [Next.js](https://nextjs.org) for more information.
         });
 
         if (!response.ok) {
-          throw new Error("Failed to convert PDF to DOCX");
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to convert PDF to DOCX");
         }
 
         const blob = await response.blob();
         setDocxBlob(blob);
         setHtml("");
         setIsLoading(false);
+        showToast("PDF converted to DOCX successfully", "success");
       }
     } catch (err) {
-      console.error('File upload error:', err);
       const errorMessage = err instanceof Error ? err.message : "An error occurred";
       setError(errorMessage);
       setFileName(null);
+      setFileSize(undefined);
       setIsLoading(false);
+      showToast(errorMessage, "error");
     } finally {
-      // Reset file input to allow selecting the same file again
       if (event.target) {
         event.target.value = '';
       }
@@ -190,11 +209,11 @@ Visit [Next.js](https://nextjs.org) for more information.
 
   const handleClearFile = () => {
     setFileName(null);
-    setMarkdown("");
+    setFileSize(undefined);
+    setMarkdown(DEFAULT_MARKDOWN);
     setHtml("");
     setDocxBlob(null);
     setFileInputKey(prev => prev + 1);
-    // Clear the file input
     const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
@@ -212,15 +231,22 @@ Visit [Next.js](https://nextjs.org) for more information.
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+    showToast("DOCX file downloaded", "success");
   };
 
   const handleConversionTypeChange = (type: ConversionType) => {
     setConversionType(type);
-    setMarkdown("");
+    setMarkdown(DEFAULT_MARKDOWN);
     setHtml("");
     setFileName(null);
+    setFileSize(undefined);
     setError(null);
     setDocxBlob(null);
+  };
+
+  const handleCopyHtml = () => {
+    navigator.clipboard.writeText(html);
+    showToast("HTML copied to clipboard!", "success");
   };
 
   return (
@@ -228,113 +254,37 @@ Visit [Next.js](https://nextjs.org) for more information.
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
-            Document to HTML Converter
+            Document Converter
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400 mb-4">
             Convert Markdown or PDF files to HTML, or convert PDF to DOCX
           </p>
           
-          {/* Conversion Type Selector */}
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <label htmlFor="conversion-type" className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-              Conversion Type:
-            </label>
-            <select
-              id="conversion-type"
-              value={conversionType}
-              onChange={(e) => handleConversionTypeChange(e.target.value as ConversionType)}
-              className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-500 dark:focus:ring-zinc-400"
-            >
-              <option value="markdown">Markdown to HTML</option>
-              <option value="pdf">PDF to HTML</option>
-              <option value="pdf-to-docx">PDF to DOCX</option>
-            </select>
-          </div>
+          <ConversionTypeSelector
+            conversionType={conversionType}
+            onChange={handleConversionTypeChange}
+          />
 
-          {/* File Upload Section */}
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <label 
-              htmlFor="file-upload-input"
-              className="cursor-pointer px-6 py-2 bg-zinc-900 dark:bg-zinc-50 text-zinc-50 dark:text-zinc-900 rounded-lg font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors inline-flex items-center gap-2"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                />
-              </svg>
-              Upload {conversionType === "markdown" ? "Markdown" : "PDF"} File
-            </label>
-            <input
-              key={fileInputKey}
-              type="file"
-              accept={conversionType === "markdown" ? ".md,.markdown,.txt" : ".pdf"}
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload-input"
-            />
-            {fileName && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
-                <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                  {fileName}
-                </span>
-                <button
-                  onClick={handleClearFile}
-                  className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-                  aria-label="Clear file"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
+          <FileUpload
+            conversionType={conversionType}
+            fileName={fileName}
+            fileSize={fileSize}
+            onFileSelect={handleFileUpload}
+            onClear={handleClearFile}
+            fileInputKey={fileInputKey}
+          />
         </header>
 
         <div className={`grid gap-6 h-[calc(100vh-200px)] ${conversionType === "markdown" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
-          {/* Markdown Input - Only shown for markdown conversion */}
           {conversionType === "markdown" && (
-            <div className="flex flex-col">
-              <label
-                htmlFor="markdown-input"
-                className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2"
-              >
-                Markdown Input
-              </label>
-              <textarea
-                id="markdown-input"
-                value={markdown}
-                onChange={(e) => setMarkdown(e.target.value)}
-                className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-500 dark:focus:ring-zinc-400"
-                placeholder="Enter your markdown here..."
-              />
-            </div>
+            <MarkdownEditor value={markdown} onChange={setMarkdown} />
           )}
           
-          {/* PDF Upload Info - Shown when PDF conversion is selected */}
           {(conversionType === "pdf" || conversionType === "pdf-to-docx") && (
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-900 p-8">
-              {fileName ? (
+              {isLoading ? (
+                <LoadingSpinner />
+              ) : fileName ? (
                 <>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -342,6 +292,7 @@ Visit [Next.js](https://nextjs.org) for more information.
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -365,6 +316,7 @@ Visit [Next.js](https://nextjs.org) for more information.
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -381,38 +333,16 @@ Visit [Next.js](https://nextjs.org) for more information.
             </div>
           )}
 
-          {/* HTML Output - Only shown for markdown and PDF to HTML */}
           {(conversionType === "markdown" || conversionType === "pdf") && (
-            <div className="flex flex-col">
-              <label
-                htmlFor="html-output"
-                className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2"
-              >
-                HTML Output
-                {isLoading && (
-                  <span className="ml-2 text-xs text-zinc-500">Converting...</span>
-                )}
-              </label>
-              <div className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 overflow-auto">
-                {error ? (
-                  <div className="text-red-600 dark:text-red-400">
-                    Error: {error}. Make sure the backend API is running on port 3001.
-                  </div>
-                ) : (
-                  <div
-                    className="prose prose-zinc dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: html }}
-                  />
-                )}
-              </div>
-            </div>
+            <HtmlPreview html={html} isLoading={isLoading} error={error} />
           )}
 
-          {/* DOCX Download Section - Shown for PDF to DOCX */}
           {conversionType === "pdf-to-docx" && (
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-900 p-8">
-              {error ? (
-                <div className="text-red-600 dark:text-red-400 text-center">
+              {isLoading ? (
+                <LoadingSpinner />
+              ) : error ? (
+                <div className="text-red-600 dark:text-red-400 text-center" role="alert">
                   Error: {error}. Make sure the backend API is running on port 3001.
                 </div>
               ) : docxBlob ? (
@@ -423,6 +353,7 @@ Visit [Next.js](https://nextjs.org) for more information.
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -437,6 +368,7 @@ Visit [Next.js](https://nextjs.org) for more information.
                   <button
                     onClick={handleDownloadDocx}
                     className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+                    aria-label="Download DOCX file"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -444,6 +376,7 @@ Visit [Next.js](https://nextjs.org) for more information.
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -457,22 +390,19 @@ Visit [Next.js](https://nextjs.org) for more information.
                 </>
               ) : (
                 <p className="text-zinc-600 dark:text-zinc-400 text-center">
-                  {isLoading ? "Converting PDF to DOCX..." : "Upload a PDF file to convert it to DOCX"}
+                  Upload a PDF file to convert it to DOCX
                 </p>
               )}
             </div>
           )}
         </div>
 
-        {/* Copy HTML Button - Only shown for markdown and PDF to HTML */}
         {(conversionType === "markdown" || conversionType === "pdf") && html && (
           <div className="mt-6 flex justify-center">
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(html);
-                alert("HTML copied to clipboard!");
-              }}
+              onClick={handleCopyHtml}
               className="px-6 py-3 bg-zinc-900 dark:bg-zinc-50 text-zinc-50 dark:text-zinc-900 rounded-lg font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+              aria-label="Copy HTML to clipboard"
             >
               Copy HTML to Clipboard
             </button>
