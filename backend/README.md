@@ -1,98 +1,146 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend API - Document Converter
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend API for converting documents between different formats.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Markdown to HTML**: Convert markdown text to HTML
+- **PDF to HTML**: Extract text from PDF files and convert to HTML
+- **PDF to DOCX**: Convert PDF files to Microsoft Word documents
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech Stack
 
-## Project setup
+- **NestJS** - Progressive Node.js framework
+- **TypeScript** - Type-safe development
+- **marked** - Markdown parser
+- **pdf-parse** - PDF text extraction
+- **docx** - DOCX document generation
 
-```bash
-$ npm install
+## Project Structure
+
+```
+backend/
+├── src/
+│   ├── markdown/          # Markdown conversion module
+│   │   ├── dto/           # Data Transfer Objects
+│   │   ├── markdown.controller.ts
+│   │   ├── markdown.service.ts
+│   │   └── markdown.module.ts
+│   ├── pdf/               # PDF conversion module
+│   │   ├── dto/           # Data Transfer Objects
+│   │   ├── pdf.controller.ts
+│   │   ├── pdf.service.ts
+│   │   └── pdf.module.ts
+│   ├── app.module.ts      # Root module
+│   └── main.ts            # Application entry point
+└── test/                  # E2E tests
 ```
 
-## Compile and run the project
+## API Endpoints
 
-```bash
-# development
-$ npm run start
+### Markdown Conversion
 
-# watch mode
-$ npm run start:dev
+**POST** `/api/markdown/convert`
 
-# production mode
-$ npm run start:prod
+Convert markdown text to HTML.
+
+**Request Body:**
+```json
+{
+  "markdown": "# Hello World\n\nThis is **bold** text."
+}
 ```
 
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+**Response:**
+```json
+{
+  "html": "<h1>Hello World</h1>\n<p>This is <strong>bold</strong> text.</p>"
+}
 ```
 
-## Deployment
+### PDF to HTML
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+**POST** `/api/pdf/convert`
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Convert PDF file to HTML (extracts text content).
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+**Request:** Multipart form data with `file` field containing PDF file
+
+**Response:**
+```json
+{
+  "html": "<p>Extracted text from PDF...</p>"
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Limitations:**
+- Maximum file size: 10MB
+- Only text-based PDFs are supported (scanned PDFs may not work)
 
-## Resources
+### PDF to DOCX
 
-Check out a few resources that may come in handy when working with NestJS:
+**POST** `/api/pdf/convert-to-docx`
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Convert PDF file to Microsoft Word document.
 
-## Support
+**Request:** Multipart form data with `file` field containing PDF file
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Response:** DOCX file download
 
-## Stay in touch
+**Limitations:**
+- Maximum file size: 10MB
+- Only text-based PDFs are supported (scanned PDFs may not work)
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Development
 
-## License
+### Prerequisites
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- Node.js (v18 or higher)
+- npm
+
+### Installation
+
+```bash
+npm install
+```
+
+### Running the Application
+
+```bash
+# Development mode with hot reload
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
+```
+
+### Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Environment Variables
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+PORT=3001
+FRONTEND_URL=http://localhost:3000
+```
+
+## Architecture Notes
+
+- **Modular Design**: Each conversion type (markdown, PDF) is organized in its own module
+- **DTOs**: Data Transfer Objects for type safety and API contracts
+- **Error Handling**: Comprehensive error handling with meaningful messages
+- **File Size Validation**: 10MB limit on file uploads
+- **CORS**: Configured for Next.js frontend integration
